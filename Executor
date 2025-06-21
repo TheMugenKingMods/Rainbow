@@ -1,0 +1,379 @@
+-- Ensure this is a LocalScript in Roblox
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CuteExecutor"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+print("ScreenGui created and parented to PlayerGui") -- Debug
+
+-- Services
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- Toggle Button (Logo)
+local Toggle = Instance.new("ImageButton")
+Toggle.Name = "ToggleLogo"
+Toggle.Size = UDim2.new(0, 54, 0, 54)
+Toggle.Position = UDim2.new(0, 5, 0, 5)
+Toggle.BackgroundTransparency = 1
+Toggle.Image = "rbxassetid://125627518624113" -- Change to your logo image
+Toggle.Parent = ScreenGui
+Toggle.ZIndex = 5
+print("Toggle button created") -- Debug
+
+-- Make Toggle button movable and clickable
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local dragging = false
+local dragStart = nil
+local startPos = nil
+local clickStartTime = nil
+local clickThreshold = 0.2 -- Seconds to differentiate click vs drag
+
+Toggle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = UserInputService:GetMouseLocation()
+        startPos = Toggle.Position
+        clickStartTime = tick()
+        print("Dragging started at mouse position: ", dragStart) -- Debug
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+        local currentPos = UserInputService:GetMouseLocation()
+        local delta = currentPos - dragStart
+        Toggle.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+        print("Dragging to new position: ", Toggle.Position) -- Debug
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local wasDragging = dragging
+        dragging = false
+        print("Dragging stopped") -- Debug
+        -- Handle click if it was a short press
+        if wasDragging and (tick() - clickStartTime) <= clickThreshold then
+            print("Toggle button clicked") -- Debug
+            if MainFrame.Visible then
+                TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
+                    Size = UDim2.new(0, 0, 0, 0),
+                    Position = UDim2.new(0.5, 0, 0.5, 0)
+                }):Play()
+                TweenService:Create(UIStroke, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
+                    Transparency = 1
+                }):Play()
+                task.wait(0.3)
+                MainFrame.Visible = false
+                print("MainFrame hidden") -- Debug
+            else
+                MainFrame.Visible = true
+                MainFrame.Size = UDim2.new(0, 0, 0, 0)
+                MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+                UIStroke.Transparency = 1
+                TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                    Size = UDim2.new(0, 150, 0, 120),
+                    Position = UDim2.new(0.5, -75, 0.5, -60)
+                }):Play()
+                TweenService:Create(UIStroke, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                    Transparency = 0.2
+                }):Play()
+                print("MainFrame shown") -- Debug
+            end
+        end
+    end
+end)
+
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 150, 0, 120)
+MainFrame.Position = UDim2.new(0.5, -75, 0.5, -60)
+MainFrame.BackgroundColor3 = Color3.fromRGB(0, 50, 100) -- Deep blue
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = true
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+MainFrame.ZIndex = 2
+print("MainFrame created and visible") -- Debug
+
+-- UI Corner
+local UICorner = Instance.new("UICorner", MainFrame)
+UICorner.CornerRadius = UDim.new(0, 8)
+
+-- UI Stroke with pulsing gold and purple glow
+local UIStroke = Instance.new("UIStroke", MainFrame)
+UIStroke.Color = Color3.fromRGB(255, 215, 0) -- Start with gold
+UIStroke.Thickness = 2
+UIStroke.Transparency = 0.2
+
+-- Pulsing glow animation (alternates gold and purple)
+local function pulseGlow()
+    while true do
+        -- Gold to purple
+        for i = 0, 1, 0.02 do
+            UIStroke.Color = Color3.fromRGB(255 - i * 105, 215 - i * 215, i * 255)
+            UIStroke.Transparency = 0.2 + (i * 0.3)
+            RunService.Heartbeat:Wait()
+        end
+        -- Purple to gold
+        for i = 1, 0, -0.02 do
+            UIStroke.Color = Color3.fromRGB(255 - i * 105, 215 - i * 215, i * 255)
+            UIStroke.Transparency = 0.2 + (i * 0.3)
+            RunService.Heartbeat:Wait()
+        end
+    end
+end
+spawn(pulseGlow)
+print("Pulse glow started") -- Debug
+
+-- Luxurious Blue-Purple Gradient with White-Gold Undertones
+local UIGradient = Instance.new("UIGradient", MainFrame)
+UIGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 50, 100)),
+    ColorSequenceKeypoint.new(0.3, Color3.fromRGB(50, 0, 150)),
+    ColorSequenceKeypoint.new(0.7, Color3.fromRGB(10, 60, 120)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 50, 100))
+}
+UIGradient.Rotation = 135
+
+-- Holographic White-Gold Shadow with Purple Tint
+local Shadow = Instance.new("ImageLabel", MainFrame)
+Shadow.Name = "Shadow"
+Shadow.Size = UDim2.new(1, 30, 1, 30)
+Shadow.Position = UDim2.new(0, -15, 0, -15)
+Shadow.Image = "rbxasset://textures/ui/Shadow.png"
+Shadow.ImageTransparency = 0.5
+Shadow.ImageColor3 = Color3.fromRGB(255, 245, 200)
+Shadow.BackgroundTransparency = 1
+Shadow.ZIndex = 1
+
+-- Tab Buttons (Home and Editor)
+local TabButtons = {"Home", "Editor"}
+local Tabs = {}
+
+local ButtonHolder = Instance.new("Frame", MainFrame)
+ButtonHolder.Size = UDim2.new(1, 0, 0, 20)
+ButtonHolder.BackgroundTransparency = 1
+ButtonHolder.ZIndex = 3
+
+for i, name in ipairs(TabButtons) do
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(0, 40, 1, 0)
+    Btn.Position = UDim2.new(0, (i - 1) * 40, 0, 0)
+    Btn.Text = name
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255) -- White
+    Btn.BackgroundColor3 = Color3.fromRGB(0, 40, 80)
+    Btn.Font = Enum.Font.SourceSansBold
+    Btn.TextSize = 10
+    Btn.Name = name.."Button"
+    Btn.Parent = ButtonHolder
+    Btn.ZIndex = 4
+    
+    local UIC = Instance.new("UICorner", Btn)
+    UIC.CornerRadius = UDim.new(0, 5)
+    
+    local UIStrokeBtn = Instance.new("UIStroke", Btn)
+    UIStrokeBtn.Color = Color3.fromRGB(150, 0, 255) -- Purple
+    UIStrokeBtn.Thickness = 1
+    UIStrokeBtn.Transparency = 0.4
+    
+    local Tab = Instance.new("Frame")
+    Tab.Size = UDim2.new(1, 0, 1, -20)
+    Tab.Position = UDim2.new(0, 0, 0, 20)
+    Tab.BackgroundColor3 = Color3.fromRGB(0, 45, 90)
+    Tab.Visible = (i == 1)
+    Tab.Parent = MainFrame
+    Tab.ZIndex = 3
+    
+    local TabCorner = Instance.new("UICorner", Tab)
+    TabCorner.CornerRadius = UDim.new(0, 5)
+    
+    local TabGradient = Instance.new("UIGradient", Tab)
+    TabGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 45, 90)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 0, 150))
+    }
+    TabGradient.Rotation = 90
+    
+    Tabs[name] = Tab
+
+    -- Hover and click effects
+    Btn.MouseEnter:Connect(function()
+        UIStrokeBtn.Transparency = 0.1
+        Btn.BackgroundColor3 = Color3.fromRGB(50, 0, 150)
+        TweenService:Create(Btn, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 42, 1, 2)}):Play()
+    end)
+    Btn.MouseLeave:Connect(function()
+        UIStrokeBtn.Transparency = 0.4
+        Btn.BackgroundColor3 = Color3.fromRGB(0, 40, 80)
+        TweenService:Create(Btn, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 40, 1, 0)}):Play()
+    end)
+
+    Btn.MouseButton1Click:Connect(function()
+        print("Tab clicked: " .. name) -- Debug
+        for _, v in pairs(Tabs) do v.Visible = false end
+        Tab.Visible = true
+        Btn.BackgroundColor3 = Color3.fromRGB(70, 0, 180)
+        UIStrokeBtn.Color = Color3.fromRGB(255, 215, 0) -- Gold
+        for _, otherBtn in pairs(ButtonHolder:GetChildren()) do
+            if otherBtn:IsA("TextButton") and otherBtn ~= Btn then
+                otherBtn.BackgroundColor3 = Color3.fromRGB(0, 40, 80)
+                otherBtn.UIStroke.Color = Color3.fromRGB(150, 0, 255)
+            end
+        end
+    end)
+end
+
+-- Home Tab (FPS Viewer)
+local FPSLabel = Instance.new("TextLabel", Tabs["Home"])
+FPSLabel.Size = UDim2.new(1, -10, 0, 15)
+FPSLabel.Position = UDim2.new(0, 5, 0, 5)
+FPSLabel.BackgroundTransparency = 1
+FPSLabel.TextColor3 = Color3.fromRGB(255, 255, 255) -- White
+FPSLabel.Font = Enum.Font.SourceSansBold
+FPSLabel.TextSize = 10
+FPSLabel.Text = "FPS: Calculating..."
+FPSLabel.ZIndex = 4
+
+local UIStrokeFPS = Instance.new("UIStroke", FPSLabel)
+UIStrokeFPS.Color = Color3.fromRGB(255, 215, 0) -- Gold
+UIStrokeFPS.Thickness = 0.5
+UIStrokeFPS.Transparency = 0.7
+
+local last = tick()
+local fps = 0
+
+RunService.RenderStepped:Connect(function()
+    local now = tick()
+    fps = math.floor(1 / (now - last))
+    last = now
+    FPSLabel.Text = "FPS: "..fps
+end)
+
+-- Editor Tab
+local SourceBox = Instance.new("TextBox", Tabs["Editor"])
+SourceBox.Size = UDim2.new(1, -10, 0.5, 0)
+SourceBox.Position = UDim2.new(0, 5, 0, 5)
+SourceBox.Text = "Here"
+SourceBox.TextWrapped = true
+SourceBox.TextXAlignment = Enum.TextXAlignment.Left
+SourceBox.TextYAlignment = Enum.TextYAlignment.Top
+SourceBox.ClearTextOnFocus = false
+SourceBox.TextColor3 = Color3.fromRGB(255, 255, 255) -- White
+SourceBox.BackgroundColor3 = Color3.fromRGB(0, 45, 90)
+SourceBox.Font = Enum.Font.Code
+SourceBox.TextSize = 10
+SourceBox.ZIndex = 4
+
+local corner = Instance.new("UICorner", SourceBox)
+corner.CornerRadius = UDim.new(0, 5)
+
+local UIStrokeSource = Instance.new("UIStroke", SourceBox)
+UIStrokeSource.Color = Color3.fromRGB(150, 0, 255) -- Purple
+UIStrokeSource.Thickness = 1
+UIStrokeSource.Transparency = 0.3
+
+-- Editor buttons
+local function createButton(name, posX, callback)
+    local Btn = Instance.new("TextButton", Tabs["Editor"])
+    Btn.Size = UDim2.new(0, 40, 0, 15)
+    Btn.Position = UDim2.new(0, posX, 0.6, 0)
+    Btn.Text = name
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255) -- White
+    Btn.BackgroundColor3 = Color3.fromRGB(0, 40, 80)
+    Btn.Font = Enum.Font.SourceSansBold
+    Btn.TextSize = 8
+    Btn.ZIndex = 4
+    
+    local UIC = Instance.new("UICorner", Btn)
+    UIC.CornerRadius = UDim.new(0, 5)
+    
+    local UIStrokeBtn = Instance.new("UIStroke", Btn)
+    UIStrokeBtn.Color = Color3.fromRGB(150, 0, 255) -- Purple
+    UIStrokeBtn.Thickness = 1
+    UIStrokeBtn.Transparency = 0.4
+    
+    -- Hover animation
+    Btn.MouseEnter:Connect(function()
+        UIStrokeBtn.Transparency = 0.1
+        Btn.BackgroundColor3 = Color3.fromRGB(50, 0, 150)
+        TweenService:Create(Btn, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 42, 0, 16)}):Play()
+    end)
+    Btn.MouseLeave:Connect(function()
+        UIStrokeBtn.Transparency = 0.4
+        Btn.BackgroundColor3 = Color3.fromRGB(0, 40, 80)
+        TweenService:Create(Btn, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 40, 0, 15)}):Play()
+    end)
+    
+    Btn.MouseButton1Click:Connect(function()
+        print("Button clicked: " .. name) -- Debug
+        callback()
+    end)
+end
+
+createButton("Execute", 8, function()
+    print("Executing script...") -- Debug
+    local script = SourceBox.Text
+    local success, result = pcall(function()
+        local func, err = loadstring(script)
+        if func then
+            print("Script compiled successfully") -- Debug
+            func()
+        else
+            warn("Script compilation error: " .. tostring(err))
+        end
+    end)
+    if not success then
+        warn("Script execution failed: " .. tostring(result))
+    end
+    print("Exec button executed") -- Debug
+end)
+
+createButton("Clear", 53, function()
+    SourceBox.Text = ""
+    print("Clear button executed") -- Debug
+end)
+
+createButton("Hide", 98, function()
+    SourceBox.Visible = not SourceBox.Visible
+    print("Hide button executed") -- Debug
+end)
+
+-- Toggle Animation with Sparkle Effect
+Toggle.MouseButton1Click:Connect(function()
+    print("Toggle button clicked") -- Debug
+    if MainFrame.Visible then
+        TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 0, 0, 0),
+            Position = UDim2.new(0.5, 0, 0.5, 0)
+        }):Play()
+        TweenService:Create(UIStroke, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
+            Transparency = 1
+        }):Play()
+        wait(0.3)
+        MainFrame.Visible = false
+        print("MainFrame hidden") -- Debug
+    else
+        MainFrame.Visible = true
+        MainFrame.Size = UDim2.new(0, 0, 0, 0)
+        MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+        UIStroke.Transparency = 1
+        TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 150, 0, 120),
+            Position = UDim2.new(0.5, -75, 0.5, -60)
+        }):Play()
+        TweenService:Create(UIStroke, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            Transparency = 0.2
+        }):Play()
+        print("MainFrame shown") -- Debug
+    end
+end)

@@ -1,0 +1,230 @@
+local player = game.Players.LocalPlayer
+local TextService = game:GetService("TextService")
+local RunService = game:GetService("RunService")
+
+-- Fungsi untuk mengonversi hue ke RGB
+local function hueToRGB(h)
+    h = h % 1
+    local r, g, b
+    if h < 1/6 then
+        r, g, b = 1, h * 6, 0
+    elseif h < 2/6 then
+        r, g, b = 1 - (h - 1/6) * 6, 1, 0
+    elseif h < 3/6 then
+        r, g, b = 0, 1, (h - 2/6) * 6
+    elseif h < 4/6 then
+        r, g, b = 0, 1 - (h - 3/6) * 6, 1
+    elseif h < 5/6 then
+        r, g, b = (h - 4/6) * 6, 0, 1
+    else
+        r, g, b = 1, 0, 1 - (h - 5/6) * 6
+    end
+    return Color3.new(r, g, b)
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "Script"
+gui.ResetOnSpawn = false
+
+-- Main Frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 120, 0, 100)
+frame.Position = UDim2.new(0, 5, 0, 5)
+frame.BackgroundColor3 = Color3.fromRGB(200, 160, 255)
+frame.BorderSizePixel = 0
+frame.Visible = true
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+-- Rounded Corners
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 6)
+corner.Parent = frame
+
+-- Gradient untuk efek rainbow
+local gradient = Instance.new("UIGradient")
+gradient.Rotation = 45
+gradient.Parent = frame
+
+-- Title Bar
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(0, 80, 0, 15)
+title.Position = UDim2.new(0, 5, 0, 2)
+title.BackgroundTransparency = 1
+title.Text = "ArceusXArchive | Executor | Keyless"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.Gotham
+title.TextSize = 8
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = frame
+
+-- Close Button
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0, 15, 0, 15)
+close.Position = UDim2.new(1, -18, 0, 2)
+close.Text = "X"
+close.TextColor3 = Color3.fromRGB(255, 255, 255)
+close.Font = Enum.Font.Gotham
+close.TextSize = 8
+close.Parent = frame
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 4)
+closeCorner.Parent = close
+
+-- Editor (Scrolling Frame)
+local editorContainer = Instance.new("ScrollingFrame")
+editorContainer.Size = UDim2.new(0, 110, 0, 30)
+editorContainer.Position = UDim2.new(0, 5, 0, 20)
+editorContainer.BorderSizePixel = 0
+editorContainer.ScrollBarThickness = 2
+editorContainer.CanvasSize = UDim2.new(0, 0, 0, 30)
+editorContainer.Parent = frame
+local editorCorner = Instance.new("UICorner")
+editorCorner.CornerRadius = UDim.new(0, 4)
+editorCorner.Parent = editorContainer
+
+local editor = Instance.new("TextBox")
+editor.Size = UDim2.new(1, -4, 1, -4)
+editor.Position = UDim2.new(0, 2, 0, 2)
+editor.BackgroundTransparency = 1
+editor.TextColor3 = Color3.fromRGB(255, 255, 255)
+editor.Font = Enum.Font.Code
+editor.TextSize = 8
+editor.ClearTextOnFocus = false
+editor.MultiLine = true
+editor.Text = "Here"
+editor.TextXAlignment = Enum.TextXAlignment.Left
+editor.TextYAlignment = Enum.TextYAlignment.Top
+editor.TextWrapped = true
+editor.Parent = editorContainer
+
+-- Update CanvasSize dynamically
+editor:GetPropertyChangedSignal("Text"):Connect(function()
+    local text = editor.Text
+    local textSize = TextService:GetTextSize(text, 8, Enum.Font.Code, Vector2.new(106, 1000))
+    editorContainer.CanvasSize = UDim2.new(0, 0, 0, math.max(30, textSize.Y + 15))
+end)
+
+-- Buttons
+local buttonSize = UDim2.new(0, 50, 0, 15)
+local buttonSpacingY = 4
+
+local execute = Instance.new("TextButton")
+execute.Size = buttonSize
+execute.Position = UDim2.new(0, 5, 0, 55)
+execute.Text = "Execute"
+execute.TextColor3 = Color3.fromRGB(255, 255, 255)
+execute.Font = Enum.Font.Gotham
+execute.TextSize = 8
+execute.Parent = frame
+local executeCorner = Instance.new("UICorner")
+executeCorner.CornerRadius = UDim.new(0, 4)
+executeCorner.Parent = execute
+
+local hide = execute:Clone()
+hide.Text = "Hide"
+hide.Position = UDim2.new(0, 5, 0, 74)
+hide.Parent = frame
+
+local clear = execute:Clone()
+clear.Text = "Clear"
+clear.Position = UDim2.new(0, 65, 0, 55)
+clear.Parent = frame
+
+local copy = execute:Clone()
+copy.Text = "Copy"
+copy.Position = UDim2.new(0, 65, 0, 74)
+copy.Parent = frame
+
+-- Minimized Box
+local miniBox = Instance.new("TextButton")
+miniBox.Size = UDim2.new(0, 60, 0, 18)
+miniBox.Position = UDim2.new(0, 20, 0, 20)
+miniBox.Text = "ArceusXArchive Executor"
+miniBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+miniBox.Font = Enum.Font.Gotham
+miniBox.TextSize = 8
+miniBox.Visible = false
+miniBox.Draggable = true
+miniBox.Active = true
+miniBox.Parent = gui
+local miniCorner = Instance.new("UICorner")
+miniCorner.CornerRadius = UDim.new(0, 4)
+miniCorner.Parent = miniBox
+
+-- Rainbow Animation
+local buttons = {execute, hide, clear, copy, close}
+local timeStep = 0
+RunService.RenderStepped:Connect(function(dt)
+    timeStep = (timeStep + dt) % 3 -- Siklus 3 detik untuk animasi cepat
+    local t = timeStep / 3
+
+    -- Gradient untuk frame
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, hueToRGB(t)),
+        ColorSequenceKeypoint.new(1, hueToRGB(t + 0.5))
+    }
+
+    -- Warna untuk editor
+    editorContainer.BackgroundColor3 = hueToRGB(t + 0.2)
+
+    -- Warna untuk tombol
+    for i, button in ipairs(buttons) do
+        button.BackgroundColor3 = hueToRGB(t + i * 0.1)
+    end
+
+    -- Warna untuk minimized box
+    miniBox.BackgroundColor3 = hueToRGB(t + 0.3)
+end)
+
+-- Logic
+local minimized = false
+
+close.MouseButton1Click:Connect(function()
+    minimized = true
+    frame.Visible = false
+    miniBox.Visible = true
+end)
+
+miniBox.MouseButton1Click:Connect(function()
+    minimized = false
+    frame.Visible = true
+    miniBox.Visible = false
+end)
+
+clear.MouseButton1Click:Connect(function()
+    editor.Text = ""
+end)
+
+hide.MouseButton1Click:Connect(function()
+    editorContainer.Visible = not editorContainer.Visible
+    hide.Text = editorContainer.Visible and "Hide" or "Show"
+end)
+
+copy.MouseButton1Click:Connect(function()
+    if editor.Text and editor.Text ~= "-- Script" and editor.Text ~= "" then
+        setclipboard(editor.Text)
+        warn("Script copied to clipboard!")
+    else
+        warn("No script to copy!")
+    end
+end)
+
+execute.MouseButton1Click:Connect(function()
+    if editor.Text == "" or editor.Text == "-- Script" then
+        warn("No script to execute!")
+        return
+    end
+
+    local func, err = loadstring(editor.Text)
+    if func then
+        local success, result = pcall(func)
+        if not success then
+            warn("Execution failed: " .. result)
+        end
+    else
+        warn("Compilation failed: " .. err)
+    end
+end)

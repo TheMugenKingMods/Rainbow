@@ -1,0 +1,900 @@
+local player = game.Players.LocalPlayer
+local TextService = game:GetService("TextService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Create RemoteEvent if it doesn't exist
+local scriptRemote = ReplicatedStorage:FindFirstChild("ScriptRemote")
+if not scriptRemote then
+    scriptRemote = Instance.new("RemoteEvent")
+    scriptRemote.Name = "ScriptRemote"
+    scriptRemote.Parent = ReplicatedStorage
+end
+
+-- Fungsi untuk mengonversi hue ke RGB
+local function hueToRGB(h)
+    h = h % 1
+    local r, g, b
+    if h < 1/6 then
+        r, g, b = 1, h * 6, 0
+    elseif h < 2/6 then
+        r, g, b = 1 - (h - 1/6) * 6, 1, 0
+    elseif h < 3/6 then
+        r, g, b = 0, 1, (h - 2/6) * 6
+    elseif h < 4/6 then
+        r, g, b = 0, 1 - (h - 3/6) * 6, 1
+    elseif h < 5/6 then
+        r, g, b = (h - 4/6) * 6, 0, 1
+    else
+        r, g, b = 1, 0, 1 - (h - 5/6) * 6
+    end
+    return Color3.new(r, g, b)
+end
+
+-- Kata kunci Lua dan fungsi umum untuk syntax highlighting dan autocomplete
+local keywords = {
+    ["function"] = true, ["local"] = true, ["if"] = true, ["then"] = true,
+    ["else"] = true, ["elseif"] = true, ["end"] = true, ["return"] = true,
+    ["for"] = true, ["while"] = true, ["do"] = true, ["break"] = true,
+    ["game:GetService"] = true, ["print"] = true, ["warn"] = true, ["task.spawn"] = true
+}
+
+-- Template kode Lua
+local templates = {
+    ["Function"] = "function myFunction()\n  -- Code here\nend",
+    ["For Loop"] = "for i = 1, 10 do\n  -- Code here\nend",
+    ["If Statement"] = "if condition then\n  -- Code here\nend",
+    ["Event Listener"] = "game:GetService(\"ReplicatedStorage\").Event:Connect(function()\n  -- Code here\nend)"
+}
+
+-- GUI
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "Script"
+gui.ResetOnSpawn = false
+
+-- Main Frame (Full-Screen)
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0.9, 0, 0.9, 0)
+frame.Position = UDim2.new(0.05, 0, 0.05, 0)
+frame.BackgroundColor3 = Color3.fromRGB(200, 160, 255)
+frame.BorderSizePixel = 0
+frame.Visible = true
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+-- Rounded Corners
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = frame
+
+-- Gradient untuk efek rainbow
+local gradient = Instance.new("UIGradient")
+gradient.Rotation = 45
+gradient.Parent = frame
+
+-- Title Bar
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(0, 200, 0, 25)
+title.Position = UDim2.new(0, 15, 0, 10)
+title.BackgroundTransparency = 1
+title.Text = "ArceusXArchive | Executor | Premium | Paid"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.Gotham
+title.TextSize = 12
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = frame
+
+-- Close Button
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0, 25, 0, 25)
+close.Position = UDim2.new(1, -30, 0, 10)
+close.Text = "X"
+close.TextColor3 = Color3.fromRGB(255, 255, 255)
+close.Font = Enum.Font.Gotham
+close.TextSize = 12
+close.Parent = frame
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = close
+
+-- Editor (Scrolling Frame)
+local editorContainer = Instance.new("ScrollingFrame")
+editorContainer.Size = UDim2.new(0.95, -50, 0.6, -40)
+editorContainer.Position = UDim2.new(0, 35, 0, 40)
+editorContainer.BorderSizePixel = 0
+editorContainer.ScrollBarThickness = 4
+editorContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+editorContainer.Parent = frame
+local editorCorner = Instance.new("UICorner")
+editorCorner.CornerRadius = UDim.new(0, 8)
+editorCorner.Parent = editorContainer
+
+-- Line Numbers
+local lineNumbers = Instance.new("TextLabel")
+lineNumbers.Size = UDim2.new(0, 20, 0.6, -40)
+lineNumbers.Position = UDim2.new(0, 15, 0, 40)
+lineNumbers.BackgroundTransparency = 1
+lineNumbers.TextColor3 = Color3.fromRGB(200, 200, 200)
+lineNumbers.Font = Enum.Font.Code
+lineNumbers.TextSize = 12
+lineNumbers.TextXAlignment = Enum.TextXAlignment.Right
+lineNumbers.TextYAlignment = Enum.TextYAlignment.Top
+lineNumbers.TextWrapped = true
+lineNumbers.Text = "1"
+lineNumbers.Parent = frame
+
+-- Syntax Highlighting Label
+local syntaxLabel = Instance.new("TextLabel")
+syntaxLabel.Size = UDim2.new(1, -8, 1, -8)
+syntaxLabel.Position = UDim2.new(0, 4, 0, 4)
+syntaxLabel.BackgroundTransparency = 1
+syntaxLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+syntaxLabel.Font = Enum.Font.Code
+syntaxLabel.TextSize = 12
+syntaxLabel.TextXAlignment = Enum.TextXAlignment.Left
+syntaxLabel.TextYAlignment = Enum.TextYAlignment.Top
+syntaxLabel.TextWrapped = true
+syntaxLabel.Text = "" -- Dikosongkan
+syntaxLabel.Parent = editorContainer
+
+local editor = Instance.new("TextBox")
+editor.Size = UDim2.new(1, -8, 1, -8)
+editor.Position = UDim2.new(0, 4, 0, 4)
+editor.BackgroundTransparency = 1
+editor.TextColor3 = Color3.fromRGB(255, 255, 255)
+editor.Font = Enum.Font.Code
+editor.TextSize = 12
+editor.ClearTextOnFocus = false
+editor.MultiLine = true
+editor.Text = "" -- Dikosongkan
+editor.TextXAlignment = Enum.TextXAlignment.Left
+editor.TextYAlignment = Enum.TextYAlignment.Top
+editor.TextWrapped = true
+editor.TextTransparency = 0.2
+editor.Parent = editorContainer
+
+-- Status Label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(0.95, -30, 0, 20)
+statusLabel.Position = UDim2.new(0, 15, 0.6, 10)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = ""
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextSize = 10
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.Parent = frame
+
+-- Console Panel
+local consoleFrame = Instance.new("Frame")
+consoleFrame.Size = UDim2.new(0.8, 0, 0, 100)
+consoleFrame.Position = UDim2.new(0.1, 0, 0.3, 0)
+consoleFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+consoleFrame.BorderSizePixel = 0
+consoleFrame.Visible = false
+consoleFrame.Parent = gui
+local consoleCorner = Instance.new("UICorner")
+consoleCorner.CornerRadius = UDim.new(0, 8)
+consoleCorner.Parent = consoleFrame
+
+local consoleLabel = Instance.new("TextLabel")
+consoleLabel.Size = UDim2.new(0, 100, 0, 20)
+consoleLabel.Position = UDim2.new(0, 10, 0, 5)
+consoleLabel.BackgroundTransparency = 1
+consoleLabel.Text = "Console Output"
+consoleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+consoleLabel.Font = Enum.Font.Gotham
+consoleLabel.TextSize = 12
+consoleLabel.Parent = consoleFrame
+
+local consoleOutput = Instance.new("ScrollingFrame")
+consoleOutput.Size = UDim2.new(0.9, -20, 0, 60)
+consoleOutput.Position = UDim2.new(0, 10, 0, 25)
+consoleOutput.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+consoleOutput.ScrollBarThickness = 4
+consoleOutput.CanvasSize = UDim2.new(0, 0, 0, 0)
+consoleOutput.Parent = consoleFrame
+local consoleOutputCorner = Instance.new("UICorner")
+consoleOutputCorner.CornerRadius = UDim.new(0, 6)
+consoleOutputCorner.Parent = consoleOutput
+
+local consoleText = Instance.new("TextLabel")
+consoleText.Size = UDim2.new(1, -8, 1, -8)
+consoleText.Position = UDim2.new(0, 4, 0, 4)
+consoleText.BackgroundTransparency = 1
+consoleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+consoleText.Font = Enum.Font.Code
+consoleText.TextSize = 10
+consoleText.TextXAlignment = Enum.TextXAlignment.Left
+consoleText.TextYAlignment = Enum.TextYAlignment.Top
+consoleText.TextWrapped = true
+consoleText.Text = ""
+consoleText.Parent = consoleOutput
+
+-- History Panel
+local historyFrame = Instance.new("Frame")
+historyFrame.Size = UDim2.new(0.8, 0, 0, 150)
+historyFrame.Position = UDim2.new(0.1, 0, 0.25, 0)
+historyFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+historyFrame.BorderSizePixel = 0
+historyFrame.Visible = false
+historyFrame.Parent = gui
+local historyCorner = Instance.new("UICorner")
+historyCorner.CornerRadius = UDim.new(0, 8)
+historyCorner.Parent = historyFrame
+
+local historyLabel = Instance.new("TextLabel")
+historyLabel.Size = UDim2.new(0, 100, 0, 20)
+historyLabel.Position = UDim2.new(0, 10, 0, 5)
+historyLabel.BackgroundTransparency = 1
+historyLabel.Text = "Run History"
+historyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+historyLabel.Font = Enum.Font.Gotham
+historyLabel.TextSize = 12
+historyLabel.Parent = historyFrame
+
+local historyList = Instance.new("ScrollingFrame")
+historyList.Size = UDim2.new(0.9, -20, 0, 110)
+historyList.Position = UDim2.new(0, 10, 0, 25)
+historyList.BackgroundTransparency = 1
+historyList.ScrollBarThickness = 4
+historyList.CanvasSize = UDim2.new(0, 0, 0, 0)
+historyList.Parent = historyFrame
+
+-- Find/Replace Panel
+local findFrame = Instance.new("Frame")
+findFrame.Size = UDim2.new(0.8, 0, 0, 80)
+findFrame.Position = UDim2.new(0.1, 0, 0.3, 0)
+findFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+findFrame.BorderSizePixel = 0
+findFrame.Visible = false
+findFrame.Parent = gui
+local findCorner = Instance.new("UICorner")
+findCorner.CornerRadius = UDim.new(0, 8)
+findCorner.Parent = findFrame
+
+local findLabel = Instance.new("TextLabel")
+findLabel.Size = UDim2.new(0, 100, 0, 20)
+findLabel.Position = UDim2.new(0, 10, 0, 5)
+findLabel.BackgroundTransparency = 1
+findLabel.Text = "Find/Replace"
+findLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+findLabel.Font = Enum.Font.Gotham
+findLabel.TextSize = 12
+findLabel.Parent = findFrame
+
+local findInput = Instance.new("TextBox")
+findInput.Size = UDim2.new(0.9, -20, 0, 20)
+findInput.Position = UDim2.new(0, 10, 0, 25)
+findInput.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+findInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+findInput.Font = Enum.Font.Gotham
+findInput.TextSize = 12
+findInput.PlaceholderText = "Find..."
+findInput.Parent = findFrame
+local findInputCorner = Instance.new("UICorner")
+findInputCorner.CornerRadius = UDim.new(0, 6)
+findInputCorner.Parent = findInput
+
+local replaceInput = findInput:Clone()
+replaceInput.Position = UDim2.new(0, 10, 0, 50)
+replaceInput.PlaceholderText = "Replace with..."
+replaceInput.Parent = findFrame
+
+local findButton = Instance.new("TextButton")
+findButton.Size = UDim2.new(0, 70, 0, 20)
+findButton.Position = UDim2.new(0.45, -75, 0, 75)
+findButton.Text = "Find"
+findButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+findButton.Font = Enum.Font.Gotham
+findButton.TextSize = 12
+findButton.Parent = findFrame
+local findButtonCorner = Instance.new("UICorner")
+findButtonCorner.CornerRadius = UDim.new(0, 6)
+findButtonCorner.Parent = findButton
+
+local replaceButton = findButton:Clone()
+replaceButton.Text = "Replace"
+replaceButton.Position = UDim2.new(0.55, 5, 0, 75)
+replaceButton.Parent = findFrame
+
+-- Template Panel
+local templateFrame = Instance.new("Frame")
+templateFrame.Size = UDim2.new(0.3, 0, 0, 100)
+templateFrame.Position = UDim2.new(0.7, -10, 0.3, 0)
+templateFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+templateFrame.BorderSizePixel = 0
+templateFrame.Visible = false
+templateFrame.Parent = gui
+local templateCorner = Instance.new("UICorner")
+templateCorner.CornerRadius = UDim.new(0, 8)
+templateCorner.Parent = templateFrame
+
+local templateList = Instance.new("ScrollingFrame")
+templateList.Size = UDim2.new(0.9, -10, 0.9, -10)
+templateList.Position = UDim2.new(0, 5, 0, 5)
+templateList.BackgroundTransparency = 1
+templateList.ScrollBarThickness = 4
+templateList.CanvasSize = UDim2.new(0, 0, 0, 0)
+templateList.Parent = templateFrame
+
+-- Auto-Complete Panel
+local autoCompleteFrame = Instance.new("Frame")
+autoCompleteFrame.Size = UDim2.new(0.3, 0, 0, 100)
+autoCompleteFrame.Position = UDim2.new(0.7, -10, 0.5, 0)
+autoCompleteFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+autoCompleteFrame.BorderSizePixel = 0
+autoCompleteFrame.Visible = false
+autoCompleteFrame.Parent = gui
+local autoCompleteCorner = Instance.new("UICorner")
+autoCompleteCorner.CornerRadius = UDim.new(0, 8)
+autoCompleteCorner.Parent = autoCompleteFrame
+
+local autoCompleteList = Instance.new("ScrollingFrame")
+autoCompleteList.Size = UDim2.new(0.9, -10, 0.9, -10)
+autoCompleteList.Position = UDim2.new(0, 5, 0, 5)
+autoCompleteList.BackgroundTransparency = 1
+autoCompleteList.ScrollBarThickness = 4
+autoCompleteList.CanvasSize = UDim2.new(0, 0, 0, 0)
+autoCompleteList.Parent = autoCompleteFrame
+
+-- Update CanvasSize, Line Numbers, and Syntax Highlighting
+local function updateEditor()
+    local text = editor.Text
+    local textSize = TextService:GetTextSize(text, editor.TextSize, Enum.Font.Code, Vector2.new(editorContainer.AbsoluteSize.X - 8, 1000))
+    editorContainer.CanvasSize = UDim2.new(0, 0, 0, math.max(editorContainer.AbsoluteSize.Y, textSize.Y + 20))
+    
+    -- Update Line Numbers
+    local lineCount = math.max(1, #text:split("\n"))
+    local lineText = ""
+    for i = 1, lineCount do
+        lineText = lineText .. i .. "\n"
+    end
+    lineNumbers.Text = lineText
+    
+    -- Syntax Highlighting
+    local highlightedText = ""
+    if text ~= "" then
+        for word in text:gmatch("%S+") do
+            if keywords[word:lower()] then
+                highlightedText = highlightedText .. "<font color=\"rgb(100,255,100)\">" .. word .. "</font> "
+            else
+                highlightedText = highlightedText .. word .. " "
+            end
+        end
+    end
+    syntaxLabel.Text = highlightedText
+end
+
+editor:GetPropertyChangedSignal("Text"):Connect(updateEditor)
+
+-- Auto-Indent
+editor.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Return then
+        local lines = editor.Text:split("\n")
+        local currentLine = lines[#lines]:match("^%s*(.-)%s*$")
+        if keywords[currentLine:lower()] then
+            editor.Text = editor.Text .. "\n  "
+            editor.CursorPosition = editor.Text:len() + 1
+        end
+    end
+end)
+
+-- Auto-Complete Logic
+local function updateAutoComplete()
+    autoCompleteFrame.Visible = false
+    for _, child in ipairs(autoCompleteList:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+    local cursorPos = editor.CursorPosition
+    if cursorPos > 1 then
+        local textBeforeCursor = editor.Text:sub(1, cursorPos - 1)
+        local lastWord = textBeforeCursor:match("%w+[%.:%w]*$") or ""
+        if #lastWord >= 3 then
+            local suggestions = {}
+            for key, _ in pairs(keywords) do
+                if key:lower():find(lastWord:lower(), 1, true) then
+                    table.insert(suggestions, key)
+                end
+            end
+            if #suggestions > 0 then
+                autoCompleteFrame.Visible = true
+                local yOffset = 0
+                for _, suggestion in ipairs(suggestions) do
+                    local suggestionButton = Instance.new("TextButton")
+                    suggestionButton.Size = UDim2.new(1, -10, 0, 30)
+                    suggestionButton.Position = UDim2.new(0, 5, 0, yOffset)
+                    suggestionButton.Text = suggestion
+                    suggestionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    suggestionButton.Font = Enum.Font.Gotham
+                    suggestionButton.TextSize = 12
+                    suggestionButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+                    suggestionButton.Parent = autoCompleteList
+                    local btnCorner = Instance.new("UICorner")
+                    btnCorner.CornerRadius = UDim.new(0, 6)
+                    btnCorner.Parent = suggestionButton
+                    suggestionButton.MouseButton1Click:Connect(function()
+                        local before = textBeforeCursor:sub(1, -#lastWord - 1)
+                        editor.Text = before .. suggestion .. editor.Text:sub(cursorPos)
+                        editor.CursorPosition = #before + #suggestion + 1
+                        autoCompleteFrame.Visible = false
+                    end)
+                    yOffset = yOffset + 35
+                end
+                autoCompleteList.CanvasSize = UDim2.new(0, 0, 0, yOffset)
+            end
+        end
+    end
+end
+
+editor:GetPropertyChangedSignal("Text"):Connect(updateAutoComplete)
+editor:GetPropertyChangedSignal("CursorPosition"):Connect(updateAutoComplete)
+
+-- Template List
+for name, code in pairs(templates) do
+    local templateButton = Instance.new("TextButton")
+    templateButton.Size = UDim2.new(1, -10, 0, 30)
+    templateButton.Position = UDim2.new(0, 5, 0, (#templateList:GetChildren() - 1) * 35)
+    templateButton.Text = name
+    templateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    templateButton.Font = Enum.Font.Gotham
+    templateButton.TextSize = 12
+    templateButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    templateButton.Parent = templateList
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = templateButton
+    templateButton.MouseButton1Click:Connect(function()
+        editor.Text = editor.Text .. "\n" .. code
+        templateFrame.Visible = false
+        statusLabel.Text = "Inserted template: " .. name
+    end)
+end
+templateList.CanvasSize = UDim2.new(0, 0, 0, #templateList:GetChildren() * 35)
+
+-- Run History
+local runHistory = {}
+local function updateHistory(code, status)
+    table.insert(runHistory, 1, {code = code, status = status})
+    if #runHistory > 10 then
+        table.remove(runHistory, 11)
+    end
+    for _, child in ipairs(historyList:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+    local yOffset = 0
+    for i, entry in ipairs(runHistory) do
+        local historyButton = Instance.new("TextButton")
+        historyButton.Size = UDim2.new(1, -10, 0, 30)
+        historyButton.Position = UDim2.new(0, 5, 0, yOffset)
+        local preview = entry.code:sub(1, 20) .. (#entry.code > 20 and "..." or "")
+        historyButton.Text = string.format("[%s] %s", entry.status, preview)
+        historyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        historyButton.Font = Enum.Font.Gotham
+        historyButton.TextSize = 10
+        historyButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+        historyButton.Parent = historyList
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 6)
+        btnCorner.Parent = historyButton
+        historyButton.MouseButton1Click:Connect(function()
+            editor.Text = entry.code
+            historyFrame.Visible = false
+            statusLabel.Text = "Loaded history entry " .. i
+        end)
+        yOffset = yOffset + 35
+    end
+    historyList.CanvasSize = UDim2.new(0, 0, 0, yOffset)
+end
+
+-- Capture Console Output
+local consoleLogs = {}
+local function logToConsole(message)
+    table.insert(consoleLogs, 1, message)
+    if #consoleLogs > 50 then
+        table.remove(consoleLogs, 51)
+    end
+    consoleText.Text = table.concat(consoleLogs, "\n")
+    local textSize = TextService:GetTextSize(consoleText.Text, 10, Enum.Font.Code, Vector2.new(consoleOutput.AbsoluteSize.X - 8, 1000))
+    consoleOutput.CanvasSize = UDim2.new(0, 0, 0, textSize.Y + 20)
+end
+
+-- Override warn untuk menangkap output
+local oldWarn = warn
+warn = function(...)
+    oldWarn(...)
+    logToConsole(table.concat({...}, " "))
+end
+
+-- Buttons
+local buttonSize = UDim2.new(0, 70, 0, 25)
+local buttonSpacingX = 10
+local buttonSpacingY = 10
+
+local execute = Instance.new("TextButton")
+execute.Size = buttonSize
+execute.Position = UDim2.new(0, 15, 0.7, 0)
+execute.Text = "Execute"
+execute.TextColor3 = Color3.fromRGB(255, 255, 255)
+execute.Font = Enum.Font.Gotham
+execute.TextSize = 12
+execute.Parent = frame
+local executeCorner = Instance.new("UICorner")
+executeCorner.CornerRadius = UDim.new(0, 8)
+executeCorner.Parent = execute
+
+local execSel = execute:Clone()
+execSel.Text = "ExecSel"
+execSel.Position = UDim2.new(0, 95, 0.7, 0)
+execSel.Parent = frame
+
+local hide = execute:Clone()
+hide.Text = "Hide"
+hide.Position = UDim2.new(0, 175, 0.7, 0)
+hide.Parent = frame
+
+local clear = execute:Clone()
+clear.Text = "Clear"
+clear.Position = UDim2.new(0, 255, 0.7, 0)
+clear.Parent = frame
+
+local copy = execute:Clone()
+copy.Text = "Copy"
+copy.Position = UDim2.new(0, 15, 0.7, 35)
+copy.Parent = frame
+
+local paste = execute:Clone()
+paste.Text = "Paste"
+paste.Position = UDim2.new(0, 95, 0.7, 35)
+paste.Parent = frame
+
+local save = execute:Clone()
+save.Text = "Save"
+save.Position = UDim2.new(0, 175, 0.7, 35)
+save.Parent = frame
+
+local load = execute:Clone()
+load.Text = "Load"
+load.Position = UDim2.new(0, 255, 0.7, 35)
+load.Parent = frame
+
+local find = execute:Clone()
+find.Text = "Find"
+find.Position = UDim2.new(0, 335, 0.7, 0)
+find.Parent = frame
+
+local template = execute:Clone()
+template.Text = "Template"
+template.Position = UDim2.new(0, 335, 0.7, 35)
+template.Parent = frame
+
+local clrCon = execute:Clone()
+clrCon.Text = "ClrCon"
+clrCon.Position = UDim2.new(0, 405, 0.7, 0)
+clrCon.Parent = frame
+
+local console = execute:Clone()
+console.Text = "Console"
+console.Position = UDim2.new(0, 405, 0.7, 35)
+console.Parent = frame
+
+local history = execute:Clone()
+history.Text = "History"
+history.Position = UDim2.new(0, 475, 0.7, 0)
+history.Parent = frame
+
+local undo = execute:Clone()
+undo.Text = "Undo"
+undo.Position = UDim2.new(0, 475, 0.7, 35)
+undo.Parent = frame
+
+local redo = execute:Clone()
+redo.Text = "Redo"
+redo.Position = UDim2.new(0, 555, 0.7, 0)
+redo.Parent = frame
+
+-- Minimized Box
+local miniBox = Instance.new("TextButton")
+miniBox.Size = UDim2.new(0, 100, 0, 30)
+miniBox.Position = UDim2.new(0, 20, 0, 20)
+miniBox.Text = "ArceusXArchive"
+miniBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+miniBox.Font = Enum.Font.Gotham
+miniBox.TextSize = 12
+miniBox.Visible = false
+miniBox.Draggable = true
+miniBox.Active = true
+miniBox.Parent = gui
+local miniCorner = Instance.new("UICorner")
+miniCorner.CornerRadius = UDim.new(0, 8)
+miniCorner.Parent = miniBox
+
+-- Rainbow Animation
+local buttons = {execute, execSel, hide, clear, copy, paste, save, load, find, template, clrCon, console, history, undo, redo, close}
+local timeStep = 0
+RunService.RenderStepped:Connect(function(dt)
+    timeStep = (timeStep + dt) % 3
+    local t = timeStep / 3
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, hueToRGB(t)),
+        ColorSequenceKeypoint.new(1, hueToRGB(t + 0.5))
+    }
+    editorContainer.BackgroundColor3 = hueToRGB(t + 0.2)
+    for i, button in ipairs(buttons) do
+        button.BackgroundColor3 = hueToRGB(t + i * 0.1)
+    end
+    findFrame.BackgroundColor3 = hueToRGB(t + 0.4)
+    templateFrame.BackgroundColor3 = hueToRGB(t + 0.4)
+    consoleFrame.BackgroundColor3 = hueToRGB(t + 0.4)
+    historyFrame.BackgroundColor3 = hueToRGB(t + 0.4)
+    autoCompleteFrame.BackgroundColor3 = hueToRGB(t + 0.4)
+    miniBox.BackgroundColor3 = hueToRGB(t + 0.3)
+end)
+
+-- Undo/Redo Logic
+local undoStack = {}
+local redoStack = {}
+local lastText = editor.Text
+
+editor:GetPropertyChangedSignal("Text"):Connect(function()
+    if editor.Text ~= lastText then
+        table.insert(undoStack, lastText)
+        redoStack = {}
+        lastText = editor.Text
+    end
+end)
+
+-- Auto-Save Logic
+local lastSavedText = editor.Text
+local autoSaveInterval = 30 -- detik
+local timeSinceLastSave = 0
+RunService.Heartbeat:Connect(function(dt)
+    timeSinceLastSave = timeSinceLastSave + dt
+    if timeSinceLastSave >= autoSaveInterval and editor.Text ~= lastSavedText then
+        if editor.Text ~= "" then
+            pcall(function()
+                scriptRemote:FireServer("save", editor.Text)
+                lastSavedText = editor.Text
+                statusLabel.Text = "Auto-saved!"
+            end)
+        end
+        timeSinceLastSave = 0
+    end
+end)
+
+-- Logic
+local minimized = false
+
+close.MouseButton1Click:Connect(function()
+    minimized = true
+    frame.Visible = false
+    miniBox.Visible = true
+end)
+
+miniBox.MouseButton1Click:Connect(function()
+    minimized = false
+    frame.Visible = true
+    miniBox.Visible = false
+end)
+
+clear.MouseButton1Click:Connect(function()
+    editor.Text = ""
+    statusLabel.Text = "Cleared!"
+end)
+
+hide.MouseButton1Click:Connect(function()
+    editorContainer.Visible = not editorContainer.Visible
+    lineNumbers.Visible = editorContainer.Visible
+    hide.Text = editorContainer.Visible and "Hide" or "Show"
+end)
+
+copy.MouseButton1Click:Connect(function()
+    if editor.Text ~= "" then
+        setclipboard(editor.Text)
+        statusLabel.Text = "Script copied!"
+    else
+        statusLabel.Text = "No script to copy!"
+    end
+end)
+
+paste.MouseButton1Click:Connect(function()
+    editor.Text = getclipboard() or ""
+    statusLabel.Text = "Pasted from clipboard!"
+end)
+
+save.MouseButton1Click:Connect(function()
+    if editor.Text ~= "" then
+        local success, result = pcall(function()
+            scriptRemote:FireServer("save", editor.Text)
+        end)
+        if success then
+            statusLabel.Text = "Script saved!"
+        else
+            statusLabel.Text = "Save failed: " .. tostring(result)
+        end
+    else
+        statusLabel.Text = "No script to save!"
+    end
+end)
+
+load.MouseButton1Click:Connect(function()
+    local success, result = pcall(function()
+        return scriptRemote:InvokeServer("load")
+    end)
+    if success and result then
+        editor.Text = result
+        statusLabel.Text = "Script loaded!"
+    else
+        statusLabel.Text = "No saved script found!"
+    end
+end)
+
+find.MouseButton1Click:Connect(function()
+    findFrame.Visible = not findFrame.Visible
+    templateFrame.Visible = false
+    consoleFrame.Visible = false
+    historyFrame.Visible = false
+    autoCompleteFrame.Visible = false
+end)
+
+findButton.MouseButton1Click:Connect(function()
+    local search = findInput.Text
+    if search ~= "" then
+        local startPos = editor.Text:find(search, 1, true)
+        if startPos then
+            editor.CursorPosition = startPos
+            editor.SelectionStart = startPos
+            editor.TextTransparency = 0
+            statusLabel.Text = "Found: " .. search
+        else
+            statusLabel.Text = "Text not found!"
+        end
+    end
+end)
+
+replaceButton.MouseButton1Click:Connect(function()
+    local search = findInput.Text
+    local replace = replaceInput.Text
+    if search ~= "" then
+        editor.Text = editor.Text:gsub(search, replace)
+        statusLabel.Text = "Replaced: " .. search
+    end
+end)
+
+template.MouseButton1Click:Connect(function()
+    templateFrame.Visible = not templateFrame.Visible
+    findFrame.Visible = false
+    consoleFrame.Visible = false
+    historyFrame.Visible = false
+    autoCompleteFrame.Visible = false
+end)
+
+clrCon.MouseButton1Click:Connect(function()
+    consoleLogs = {}
+    consoleText.Text = ""
+    consoleOutput.CanvasSize = UDim2.new(0, 0, 0, 0)
+    statusLabel.Text = "Console cleared!"
+end)
+
+console.MouseButton1Click:Connect(function()
+    consoleFrame.Visible = not consoleFrame.Visible
+    findFrame.Visible = false
+    templateFrame.Visible = false
+    historyFrame.Visible = false
+    autoCompleteFrame.Visible = false
+end)
+
+history.MouseButton1Click:Connect(function()
+    historyFrame.Visible = not historyFrame.Visible
+    findFrame.Visible = false
+    templateFrame.Visible = false
+    consoleFrame.Visible = false
+    autoCompleteFrame.Visible = false
+end)
+
+undo.MouseButton1Click:Connect(function()
+    if #undoStack > 0 then
+        table.insert(redoStack, editor.Text)
+        editor.Text = table.remove(undoStack)
+        statusLabel.Text = "Undo performed!"
+    else
+        statusLabel.Text = "Nothing to undo!"
+    end
+end)
+
+redo.MouseButton1Click:Connect(function()
+    if #redoStack > 0 then
+        table.insert(undoStack, editor.Text)
+        editor.Text = table.remove(redoStack)
+        statusLabel.Text = "Redo performed!"
+    else
+        statusLabel.Text = "Nothing to redo!"
+    end
+end)
+
+execute.MouseButton1Click:Connect(function()
+    if editor.Text == "" then
+        statusLabel.Text = "No script to execute!"
+        return
+    end
+    if not loadstring then
+        statusLabel.Text = "Executor does not support loadstring!"
+        updateHistory(editor.Text, "Failed")
+        return
+    end
+    local func, err = loadstring(editor.Text)
+    if not func or type(func) ~= "function" then
+        local lineNum = err and err:match(":(%d+):")
+        if lineNum then
+            lineNum = tonumber(lineNum)
+            local lines = editor.Text:split("\n")
+            if lines[lineNum] then
+                syntaxLabel.Text = syntaxLabel.Text:gsub(lines[lineNum], "<font color=\"rgb(255,100,100)\">" .. lines[lineNum] .. "</font>")
+                statusLabel.Text = "Compilation failed at line " .. lineNum .. ": " .. tostring(err or "Invalid function")
+                task.delay(3, function() updateEditor() end)
+            else
+                statusLabel.Text = "Compilation failed: " .. tostring(err or "Invalid function")
+            end
+        else
+            statusLabel.Text = "Compilation failed: " .. tostring(err or "Invalid function")
+        end
+        updateHistory(editor.Text, "Failed")
+        return
+    end
+    local success, result = pcall(func)
+    if success then
+        statusLabel.Text = "Script executed!"
+        updateHistory(editor.Text, "Success")
+    else
+        local lineNum = result:match(":(%d+):")
+        if lineNum then
+            lineNum = tonumber(lineNum)
+            local lines = editor.Text:split("\n")
+            if lines[lineNum] then
+                syntaxLabel.Text = syntaxLabel.Text:gsub(lines[lineNum], "<font color=\"rgb(255,100,100)\">" .. lines[lineNum] .. "</font>")
+                statusLabel.Text = "Execution failed at line " .. lineNum .. ": " .. tostring(result)
+                task.delay(3, function() updateEditor() end)
+            else
+                statusLabel.Text = "Execution failed: " .. tostring(result)
+            end
+        else
+            statusLabel.Text = "Execution failed: " .. tostring(result)
+        end
+        updateHistory(editor.Text, "Failed")
+    end
+end)
+
+execSel.MouseButton1Click:Connect(function()
+    local selectedText = editor.SelectedText
+    if selectedText == "" then
+        selectedText = editor.Text
+    end
+    if selectedText == "" then
+        statusLabel.Text = "No selection to execute!"
+        return
+    end
+    if not loadstring then
+        statusLabel.Text = "Executor does not support loadstring!"
+        updateHistory(selectedText, "Failed")
+        return
+    end
+    local func, err = loadstring(selectedText)
+    if not func or type(func) ~= "function" then
+        statusLabel.Text = "Compilation failed: " .. tostring(err or "Invalid function")
+        updateHistory(selectedText, "Failed")
+        return
+    end
+    local success, result = pcall(func)
+    if success then
+        statusLabel.Text = "Selection executed!"
+        updateHistory(selectedText, "Success")
+    else
+        statusLabel.Text = "Execution failed: " .. tostring(result)
+        updateHistory(selectedText, "Failed")
+    end
+end)

@@ -86,7 +86,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(0, 200, 0, 25)
 title.Position = UDim2.new(0, 15, 0, 10)
 title.BackgroundTransparency = 1
-title.Text = "ArceusXArchive | Executor | Undetected | Premium | UNC Level 100 | Keyless"
+title.Text = "ArceusXArchive | Executor | Undetected | Premium | UNC Lvl 100 | Keyless"
 title.TextColor3 = currentTheme.Text
 title.Font = Enum.Font.Gotham
 title.TextSize = 12
@@ -109,7 +109,7 @@ closeCorner.Parent = close
 
 -- Editor
 local editorContainer = Instance.new("ScrollingFrame")
-editorContainer.Size = UDim2.new(0.95, -50, 0, 100)
+editorContainer.Size = UDim2.new(0.90, -50, 0, 100)
 editorContainer.Position = UDim2.new(0, 35, 0, 40)
 editorContainer.BorderSizePixel = 0
 editorContainer.ScrollBarThickness = 4
